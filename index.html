@@ -130,19 +130,18 @@
       }
     }
 
-    function makeRandomBelow(limit) {
-      let block = 0;
+    // カウンター付きSHA-256で、文字ごとに再現可能な乱数を生成する。
+    // Rejection samplingにより、0〜limit-1を偏りなく選ぶ。
+    async function randomBelow(limit, counterRef) {
       const range = 0x100000000;
       const ceiling = Math.floor(range / limit) * limit;
 
-      return async function () {
-        while (true) {
-          const context = `${generationCount}|${$("length").value}|${$("pattern").value}`;
-          const bytes = await sha256(seedHex + "|" + context + "|" + block++);
-          const value = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
-          if (value < ceiling) return value % limit;
-        }
-      };
+      while (true) {
+        const context = `${generationCount}|${$("length").value}|${$("pattern").value}|${counterRef.value++}`;
+        const bytes = await sha256(seedHex + "|character|" + context);
+        const value = ((bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3]) >>> 0;
+        if (value < ceiling) return value % limit;
+      }
     }
 
     async function generatePassword() {
@@ -168,24 +167,26 @@
       }
 
       const groups = groupsByPattern[$("pattern").value];
-      const randomBelow = makeRandomBelow(groups.length);
+      const alphabet = [...new Set(groups.join(""))];
+      const counter = { value: 0 };
 
       try {
         const chars = [];
-        for (const group of groups) {
-          chars.push(group[await randomBelow()]);
+
+        // 各文字を、選択グループではなく最終文字集合から1文字ずつ選ぶ。
+        for (let i = 0; i < length; i++) {
+          const index = await randomBelow(alphabet.length, counter);
+          chars.push(alphabet[index]);
         }
 
-        const alphabet = [...new Set(groups.join(""))];
-        while (chars.length < length) {
-          const randomAlphabet = makeRandomBelow(alphabet.length);
-          chars.push(alphabet[await randomAlphabet()]);
-        }
+        // 従来と同じ各グループ最低1文字の条件を維持する。
+        for (let i = 0; i < groups.length; i++) {
+          const group = groups[i];
+          if (chars.some(char => group.includes(char))) continue;
 
-        for (let i = chars.length - 1; i > 0; i--) {
-          const randomIndex = makeRandomBelow(i + 1);
-          const j = await randomIndex();
-          [chars[i], chars[j]] = [chars[j], chars[i]];
+          const position = await randomBelow(length, counter);
+          const index = await randomBelow(group.length, counter);
+          chars[position] = group[index];
         }
 
         $("result").value = chars.join("");
