@@ -16,7 +16,7 @@
     .result-row { display: flex; gap: 8px; }
     .result-row input { flex: 1; min-width: 0; font-family: monospace; }
     .result-row button { width: auto; }
-    .memo-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px; align-items: end; gap: 8px; }
+    .memo-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 44px; align-items: end; gap: 8px; }
     .check-label { display: grid; place-items: center; width: 44px; height: 44px; margin: 0; border: 1px solid #8888; border-radius: 8px; }
     .check-label input { width: 20px; min-height: 20px; height: 20px; margin: 0; padding: 0; }
     .note { padding: 12px; border-left: 4px solid #d99b18; background: #d99b1818; border-radius: 4px; }
@@ -31,7 +31,7 @@
       このページはメモから同じパスワード列を再現できます。
       メモが推測されるとパスワードも再現されるため、
       <strong>重要なアカウントには、推測されやすいメモを使わないでください。</strong>
-      入力内容はこのページ内で処理し、ブラウザのローカルストレージに保存します。
+      チェックしたメモはブラウザのローカルストレージに平文で保存されます。共有端末では保存しないでください。
     </p>
 
     <label for="length">文字数</label>
@@ -49,19 +49,23 @@
 
     <label for="memo1">メモ1</label>
     <div class="memo-row">
-      <input id="memo1" type="text" autocomplete="off">
+      <input id="memo1" type="password" autocomplete="off">
       <label class="check-label" for="check1" title="メモ1を保存"><input id="check1" type="checkbox" aria-label="メモ1をローカルストレージに保存"></label>
+      <label class="check-label" for="show1" title="メモ1を表示"><input id="show1" type="checkbox" aria-label="メモ1を表示する（チェックなしで非表示）"></label>
     </div>
     <label for="memo2">メモ2</label>
     <div class="memo-row">
-      <input id="memo2" type="text" autocomplete="off">
+      <input id="memo2" type="password" autocomplete="off">
       <label class="check-label" for="check2" title="メモ2を保存"><input id="check2" type="checkbox" aria-label="メモ2をローカルストレージに保存"></label>
+      <label class="check-label" for="show2" title="メモ2を表示"><input id="show2" type="checkbox" aria-label="メモ2を表示する（チェックなしで非表示）"></label>
     </div>
     <label for="memo3">メモ3</label>
     <div class="memo-row">
-      <input id="memo3" type="text" autocomplete="off">
+      <input id="memo3" type="password" autocomplete="off">
       <label class="check-label" for="check3" title="メモ3を保存"><input id="check3" type="checkbox" aria-label="メモ3をローカルストレージに保存"></label>
+      <label class="check-label" for="show3" title="メモ3を表示"><input id="show3" type="checkbox" aria-label="メモ3を表示する（チェックなしで非表示）"></label>
     </div>
+    <p class="muted">各行の1つ目のチェックはメモの保存、2つ目のチェックは入力内容の表示切替です。</p>
 
     <div class="buttons">
       <button id="makeSeed" type="button">メモからシードハッシュを作成</button>
@@ -83,7 +87,7 @@
 
     <p id="status" class="muted" aria-live="polite"></p>
     <p id="count" class="muted">生成回数：0</p>
-    <p class="muted">同じメモ・文字数・パターンなら、同じ順番で生成した結果を再現できます。シードをリセットすると、生成回数も0に戻ります。ブラウザを閉じても、チェックしたメモとチェック状態はローカルに記憶されます。</p>
+    <p class="muted">同じメモ・文字数・パターンなら、同じ順番で生成した結果を再現できます。シードをリセットすると、生成回数も0に戻ります。</p>
   </main>
 
   <script>
@@ -112,10 +116,20 @@
       return `pwg.check${number}`;
     }
 
+    function visibilityKey(number) {
+      return `pwg.show${number}`;
+    }
+
+    function updateMemoVisibility(number) {
+      $("memo" + number).type = $("show" + number).checked ? "text" : "password";
+    }
+
     function loadMemo(number) {
       const checked = localStorage.getItem(checkKey(number)) === "true";
       $("check" + number).checked = checked;
       $("memo" + number).value = checked ? (localStorage.getItem(storageKey(number)) || "") : "";
+      $("show" + number).checked = localStorage.getItem(visibilityKey(number)) === "true";
+      updateMemoVisibility(number);
     }
 
     function saveMemo(number) {
@@ -126,6 +140,11 @@
       } else {
         localStorage.removeItem(storageKey(number));
       }
+    }
+
+    function saveVisibility(number) {
+      localStorage.setItem(visibilityKey(number), String($("show" + number).checked));
+      updateMemoVisibility(number);
     }
 
     function getMemoSnapshot() {
@@ -238,8 +257,11 @@
       for (let number = 1; number <= 3; number++) {
         $("memo" + number).value = "";
         $("check" + number).checked = false;
+        $("show" + number).checked = false;
+        updateMemoVisibility(number);
         localStorage.removeItem(storageKey(number));
         localStorage.removeItem(checkKey(number));
+        localStorage.removeItem(visibilityKey(number));
       }
       $("seedHash").value = "";
       $("result").value = "";
@@ -268,6 +290,7 @@
       loadMemo(number);
       $("memo" + number).addEventListener("input", () => saveMemo(number));
       $("check" + number).addEventListener("change", () => saveMemo(number));
+      $("show" + number).addEventListener("change", () => saveVisibility(number));
     }
 
     $("makeSeed").addEventListener("click", makeSeed);
