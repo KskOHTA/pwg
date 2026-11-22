@@ -12,37 +12,56 @@
     label { display: block; margin: 16px 0 6px; font-weight: 600; }
     input, select, button { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #8888; border-radius: 8px; font: inherit; }
     button { cursor: pointer; font-weight: 600; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #4b9cff; outline-offset: 2px; }
     .buttons { display: grid; gap: 10px; margin-top: 16px; }
+    .hash-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+    .settings-row > div { min-width: 0; }
+    .settings-row select, .settings-row input { min-width: 0; }
     .result-row { display: flex; gap: 8px; }
     .result-row input { flex: 1; min-width: 0; font-family: monospace; }
     .result-row button { width: auto; }
     .note { padding: 12px; border-left: 4px solid #d99b18; background: #d99b1818; border-radius: 4px; }
     .muted { opacity: .8; font-size: .92rem; }
     #status { min-height: 1.5em; }
+    details.description { margin: 12px 0; }
+    details.description summary { cursor: pointer; font-weight: 600; }
+    @media (max-width: 420px) {
+      body { padding: 16px 12px 32px; }
+      .hash-actions { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <main>
     <h1>パスワードジェネレーター</h1>
-    <p class="note">
-      このページはメモから同じパスワード列を再現できます。
-      メモが推測されるとパスワードも再現されるため、
-      <strong>重要なアカウントには、推測されやすいメモを使わないでください。</strong>
-      入力内容はこのページ内で処理し、保存・送信しません。
-    </p>
+    <details class="description">
+      <summary>このページについて</summary>
+      <p class="note">
+        このページはメモから同じパスワード列を再現できます。
+        メモが推測されるとパスワードも再現されるため、
+        <strong>重要なアカウントには、推測されやすいメモを使わないでください。</strong>
+        入力内容はこのページ内で処理し、保存・送信しません。
+      </p>
+    </details>
 
-    <label for="length">文字数</label>
-    <input id="length" type="number" min="1" max="256" value="8">
-
-    <label for="pattern">文字パターン</label>
-    <select id="pattern">
-      <option value="1">1：英大文字＋英小文字＋数字</option>
-      <option value="2">2：英小文字＋数字</option>
-      <option value="3">3：英大文字＋数字</option>
-      <option value="4">4：英大文字＋英小文字</option>
-      <option value="5">5：英大文字＋英小文字＋数字＋記号</option>
-      <option value="6">6：英小文字＋数字＋記号</option>
-    </select>
+    <div class="settings-row">
+      <div>
+        <label for="pattern">文字パターン</label>
+        <select id="pattern">
+          <option value="1">1：英大＋英小＋数字</option>
+          <option value="2">2：英小＋数字</option>
+          <option value="3">3：英大＋数字</option>
+          <option value="4">4：英大＋英小</option>
+          <option value="5">5：英大＋英小＋数字＋記号</option>
+          <option value="6">6：英小＋数字＋記号</option>
+        </select>
+      </div>
+      <div>
+        <label for="length">文字数</label>
+        <input id="length" type="number" min="1" max="256" value="8">
+      </div>
+    </div>
 
     <label for="memo1">メモ1</label>
     <input id="memo1" type="text" autocomplete="off">
@@ -51,16 +70,14 @@
     <label for="memo3">メモ3</label>
     <input id="memo3" type="text" autocomplete="off">
 
-    <div class="buttons">
-      <button id="makeSeed" type="button">メモからシードハッシュを作成</button>
-    </div>
+    <details class="description">
+      <summary>キー操作</summary>
+      <p class="muted">メモ欄でEnterキーを押すとパスワードを生成します。Escapeキーを押すと、そのメモ欄を消去します。Tabキーでは画面上の順番に次の項目へ移動します。</p>
+    </details>
 
-    <label for="seedHash">シードハッシュ（SHA-256）</label>
-    <input id="seedHash" type="text" readonly placeholder="メモを入力してハッシュを作成してください">
-
-    <div class="buttons">
-      <button id="generate" type="button">パスワードを生成</button>
-      <button id="reset" type="button">シードをリセット</button>
+    <div class="buttons hash-actions">
+      <button id="makeSeed" type="button">ハッシュ作成</button>
+      <button id="generate" type="button">パスワード生成</button>
     </div>
 
     <label for="result">生成結果</label>
@@ -71,7 +88,16 @@
 
     <p id="status" class="muted" aria-live="polite"></p>
     <p id="count" class="muted">生成回数：0</p>
-    <p class="muted">同じメモ・文字数・パターンなら、同じ順番で生成した結果を再現できます。シードをリセットすると、生成回数も0に戻ります。</p>
+
+    <details class="description">
+      <summary>生成ルールの説明</summary>
+      <p class="muted">同じメモ・文字数・パターンなら、同じ順番で生成した結果を再現できます。パスワード生成を押すたびに生成回数が進みます。ハッシュ作成またはメモの変更で生成回数は0に戻ります。</p>
+      <p class="muted">文字数が選択した文字カテゴリ数より少ない場合、すべてのカテゴリの文字を含められないことがあります。</p>
+    </details>
+
+    <label for="seedHash">シードハッシュ（SHA-256）</label>
+    <input id="seedHash" type="text" readonly placeholder="メモを入力してハッシュを作成してください">
+    <div class="buttons"><button id="reset" type="button">リセット</button></div>
   </main>
 
   <script>
@@ -92,6 +118,15 @@
     let memoSnapshot = "";
     let generationCount = 0;
 
+    function clearMemoDerivedValues() {
+      seedHex = "";
+      memoSnapshot = "";
+      generationCount = 0;
+      $("seedHash").value = "";
+      $("result").value = "";
+      $("count").textContent = "生成回数：0";
+    }
+
     function getMemoSnapshot() {
       return JSON.stringify([$("memo1").value, $("memo2").value, $("memo3").value]);
     }
@@ -109,12 +144,12 @@
     async function makeSeed() {
       if (!crypto.subtle) {
         $("status").textContent = "Web Crypto APIを利用できません。HTTPS接続で開いてください。";
-        return;
+        return false;
       }
 
       if (![$("memo1").value, $("memo2").value, $("memo3").value].some(v => v.length > 0)) {
         $("status").textContent = "シード作成には、メモを1つ以上入力してください。";
-        return;
+        return false;
       }
 
       try {
@@ -124,14 +159,15 @@
         $("seedHash").value = seedHex;
         $("result").value = "";
         $("count").textContent = "生成回数：0";
-        $("status").textContent = "シードハッシュを作成しました。";
+        $("status").textContent = "ハッシュを作成しました。";
+        return true;
       } catch {
         $("status").textContent = "ハッシュの作成に失敗しました。";
+        return false;
       }
     }
 
-    // カウンター付きSHA-256で、文字ごとに再現可能な乱数を生成する。
-    // Rejection samplingにより、0〜limit-1を偏りなく選ぶ。
+    // Rejection sampling keeps selection across the character set unbiased.
     async function randomBelow(limit, counterRef) {
       const range = 0x100000000;
       const ceiling = Math.floor(range / limit) * limit;
@@ -145,14 +181,9 @@
     }
 
     async function generatePassword() {
-      if (!seedHex) {
-        $("status").textContent = "先にシードハッシュを作成してください。";
-        return;
-      }
-
-      if (getMemoSnapshot() !== memoSnapshot) {
-        $("status").textContent = "メモが変更されています。新しいシードハッシュを作成してください。";
-        return;
+      if (!seedHex || getMemoSnapshot() !== memoSnapshot) {
+        const created = await makeSeed();
+        if (!created) return;
       }
 
       if (!crypto.subtle) {
@@ -172,18 +203,13 @@
 
       try {
         const chars = [];
-
-        // 各文字を、選択グループではなく最終文字集合から1文字ずつ選ぶ。
         for (let i = 0; i < length; i++) {
           const index = await randomBelow(alphabet.length, counter);
           chars.push(alphabet[index]);
         }
 
-        // 従来と同じ各グループ最低1文字の条件を維持する。
-        for (let i = 0; i < groups.length; i++) {
-          const group = groups[i];
+        for (const group of groups) {
           if (chars.some(char => group.includes(char))) continue;
-
           const position = await randomBelow(length, counter);
           const index = await randomBelow(group.length, counter);
           chars[position] = group[index];
@@ -192,7 +218,9 @@
         $("result").value = chars.join("");
         generationCount++;
         $("count").textContent = `生成回数：${generationCount}`;
-        $("status").textContent = "パスワードを生成しました。";
+        $("status").textContent = length < groups.length
+          ? "パスワードを生成しました。文字数不足のため、すべてのカテゴリの文字を含められませんでした。"
+          : "パスワードを生成しました。";
       } catch {
         $("status").textContent = "生成に失敗しました。HTTPS接続で開いているか確認してください。";
       }
@@ -202,17 +230,12 @@
       $("memo1").value = "";
       $("memo2").value = "";
       $("memo3").value = "";
-      $("seedHash").value = "";
-      $("result").value = "";
-      seedHex = "";
-      memoSnapshot = "";
-      generationCount = 0;
-      $("count").textContent = "生成回数：0";
-      $("status").textContent = "シードと生成結果をリセットしました。";
+      clearMemoDerivedValues();
+      $("status").textContent = "シード、メモ、生成結果をリセットしました。";
     }
 
     async function copyResult() {
-      if (!$("result").value) {
+      if (!( $("result").value )) {
         $("status").textContent = "コピーする生成結果がありません。";
         return;
       }
@@ -223,6 +246,25 @@
       } catch {
         $("status").textContent = "コピーできませんでした。結果を選択してコピーしてください。";
       }
+    }
+
+    for (let number = 1; number <= 3; number++) {
+      const memo = $("memo" + number);
+      memo.addEventListener("input", () => {
+        clearMemoDerivedValues();
+        $("status").textContent = "メモが変更されたため、生成結果とシードハッシュをクリアしました。";
+      });
+      memo.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          memo.value = "";
+          clearMemoDerivedValues();
+          $("status").textContent = `メモ${number}をクリアしました。`;
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          generatePassword();
+        }
+      });
     }
 
     $("makeSeed").addEventListener("click", makeSeed);
