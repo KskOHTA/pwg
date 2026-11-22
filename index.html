@@ -18,6 +18,10 @@
     .settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
     .settings-row > div { min-width: 0; }
     .settings-row select, .settings-row input { min-width: 0; }
+    .memo-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 44px; align-items: end; gap: 8px; }
+    .memo-row > input { min-width: 0; }
+    .check-label { display: grid; place-items: center; width: 44px; height: 44px; margin: 0; border: 1px solid #8888; border-radius: 8px; }
+    .check-label input { width: 20px; min-height: 20px; height: 20px; margin: 0; padding: 0; }
     .result-row { display: flex; gap: 8px; }
     .result-row input { flex: 1; min-width: 0; font-family: monospace; }
     .result-row button { width: auto; }
@@ -41,7 +45,7 @@
         このページはメモから同じパスワード列を再現できます。
         メモが推測されるとパスワードも再現されるため、
         <strong>重要なアカウントには、推測されやすいメモを使わないでください。</strong>
-        入力内容はこのページ内で処理し、保存・送信しません。
+        メモは通常保存・送信されません。「保存」にチェックしたメモは、このブラウザーのローカルストレージに平文で保存されます。共有端末では保存しないでください。
       </p>
     </details>
 
@@ -64,12 +68,28 @@
     </div>
 
     <label for="memo1">メモ1</label>
-    <input id="memo1" type="text" autocomplete="off">
+    <div class="memo-row">
+      <input id="memo1" type="password" autocomplete="off">
+      <label class="check-label" for="check1" title="メモ1を保存"><input id="check1" type="checkbox" aria-label="メモ1をローカルストレージに保存"></label>
+      <label class="check-label" for="show1" title="メモ1を表示"><input id="show1" type="checkbox" aria-label="メモ1を表示する"></label>
+    </div>
     <label for="memo2">メモ2</label>
-    <input id="memo2" type="text" autocomplete="off">
+    <div class="memo-row">
+      <input id="memo2" type="password" autocomplete="off">
+      <label class="check-label" for="check2" title="メモ2を保存"><input id="check2" type="checkbox" aria-label="メモ2をローカルストレージに保存"></label>
+      <label class="check-label" for="show2" title="メモ2を表示"><input id="show2" type="checkbox" aria-label="メモ2を表示する"></label>
+    </div>
     <label for="memo3">メモ3</label>
-    <input id="memo3" type="text" autocomplete="off">
+    <div class="memo-row">
+      <input id="memo3" type="password" autocomplete="off">
+      <label class="check-label" for="check3" title="メモ3を保存"><input id="check3" type="checkbox" aria-label="メモ3をローカルストレージに保存"></label>
+      <label class="check-label" for="show3" title="メモ3を表示"><input id="show3" type="checkbox" aria-label="メモ3を表示する"></label>
+    </div>
 
+    <details class="description">
+      <summary>チェックボックスの説明</summary>
+      <p class="muted">各メモ欄の1つ目のチェックはメモの保存、2つ目のチェックは入力内容の表示・非表示です。保存はブラウザー内に平文で行われます。</p>
+    </details>
     <details class="description">
       <summary>キー操作</summary>
       <p class="muted">メモ欄でEnterキーを押すとパスワードを生成します。Escapeキーを押すと、そのメモ欄を消去します。Tabキーでは画面上の順番に次の項目へ移動します。</p>
@@ -118,6 +138,10 @@
     let memoSnapshot = "";
     let generationCount = 0;
 
+    function storageKey(number) { return `pwg.memo${number}`; }
+    function checkKey(number) { return `pwg.check${number}`; }
+    function visibilityKey(number) { return `pwg.show${number}`; }
+
     function clearMemoDerivedValues() {
       seedHex = "";
       memoSnapshot = "";
@@ -125,6 +149,48 @@
       $("seedHash").value = "";
       $("result").value = "";
       $("count").textContent = "生成回数：0";
+    }
+
+    function updateMemoVisibility(number) {
+      $("memo" + number).type = $("show" + number).checked ? "text" : "password";
+    }
+
+    function loadMemo(number) {
+      try {
+        const checked = localStorage.getItem(checkKey(number)) === "true";
+        $("check" + number).checked = checked;
+        $("memo" + number).value = checked ? (localStorage.getItem(storageKey(number)) || "") : "";
+        const savedVisibility = localStorage.getItem(visibilityKey(number));
+        $("show" + number).checked = savedVisibility === null || savedVisibility === "true";
+      } catch {
+        $("status").textContent = "ブラウザーの保存領域を利用できません。メモは保存されません。";
+      }
+      updateMemoVisibility(number);
+    }
+
+    function saveMemo(number) {
+      try {
+        const checked = $("check" + number).checked;
+        localStorage.setItem(checkKey(number), String(checked));
+        if (checked) {
+          localStorage.setItem(storageKey(number), $("memo" + number).value);
+        } else {
+          localStorage.removeItem(storageKey(number));
+        }
+        return true;
+      } catch {
+        $("status").textContent = "メモを保存できませんでした。ブラウザーの保存領域を確認してください。";
+        return false;
+      }
+    }
+
+    function saveVisibility(number) {
+      updateMemoVisibility(number);
+      try {
+        localStorage.setItem(visibilityKey(number), String($("show" + number).checked));
+      } catch {
+        $("status").textContent = "表示設定を保存できませんでした。";
+      }
     }
 
     function getMemoSnapshot() {
@@ -227,15 +293,25 @@
     }
 
     function resetSeed() {
-      $("memo1").value = "";
-      $("memo2").value = "";
-      $("memo3").value = "";
+      for (let number = 1; number <= 3; number++) {
+        $("memo" + number).value = "";
+        $("check" + number).checked = false;
+        $("show" + number).checked = true;
+        updateMemoVisibility(number);
+        try {
+          localStorage.removeItem(storageKey(number));
+          localStorage.removeItem(checkKey(number));
+          localStorage.removeItem(visibilityKey(number));
+        } catch {
+          // The visible fields are still reset if browser storage is unavailable.
+        }
+      }
       clearMemoDerivedValues();
-      $("status").textContent = "シード、メモ、生成結果をリセットしました。";
+      $("status").textContent = "シード、メモ、保存設定、生成結果をリセットしました。";
     }
 
     async function copyResult() {
-      if (!( $("result").value )) {
+      if (!$("result").value) {
         $("status").textContent = "コピーする生成結果がありません。";
         return;
       }
@@ -250,7 +326,9 @@
 
     for (let number = 1; number <= 3; number++) {
       const memo = $("memo" + number);
+      loadMemo(number);
       memo.addEventListener("input", () => {
+        saveMemo(number);
         clearMemoDerivedValues();
         $("status").textContent = "メモが変更されたため、生成結果とシードハッシュをクリアしました。";
       });
@@ -258,6 +336,7 @@
         if (event.key === "Escape") {
           event.preventDefault();
           memo.value = "";
+          saveMemo(number);
           clearMemoDerivedValues();
           $("status").textContent = `メモ${number}をクリアしました。`;
         } else if (event.key === "Enter") {
@@ -265,6 +344,8 @@
           generatePassword();
         }
       });
+      $("check" + number).addEventListener("change", () => saveMemo(number));
+      $("show" + number).addEventListener("change", () => saveVisibility(number));
     }
 
     $("makeSeed").addEventListener("click", makeSeed);
