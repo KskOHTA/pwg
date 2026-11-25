@@ -310,7 +310,7 @@
         return;
       }
 
-      const initial = { length: "__LENGTH__", pattern: "__PATTERN__", memo1: "__MEMO1__", memo2: "__MEMO2__", memo3: "__MEMO3__" };
+      const initial = { length: "__LENGTH__", pattern: "__PATTERN__", memo1: "__MEMO1__", memo2: "__MEMO2__", memo3: "__MEMO3__", show1: "__SHOW1__", show2: "__SHOW2__", show3: "__SHOW3__" };
       const groupsByPattern = {
         "1": ["ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz", "0123456789"],
         "2": ["abcdefghijklmnopqrstuvwxyz", "0123456789"],
@@ -334,9 +334,9 @@
           <div><label style="display:block;font-weight:700;margin:0 0 6px">文字数</label><input id="pwgBmLength" type="number" min="1" max="256" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
         </div>
         <div style="display:grid;gap:8px;margin-top:12px">
-          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ1</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow1" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo1" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
-          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ2</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow2" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo2" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
-          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ3</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow3" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo3" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ1</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow1" type="checkbox" style="width:18px;height:18px"> テキスト表示</label></div><input id="pwgBmMemo1" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ2</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow2" type="checkbox" style="width:18px;height:18px"> テキスト表示</label></div><input id="pwgBmMemo2" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ3</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow3" type="checkbox" style="width:18px;height:18px"> テキスト表示</label></div><input id="pwgBmMemo3" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
         </div>
         <button id="pwgBmGenerate" type="button" style="width:100%;min-height:44px;margin-top:14px;border:1px solid #172033;border-radius:8px;font-weight:700;color:#172033;background:#f8fafc">パスワード生成</button>
         <label style="display:block;font-weight:700;margin:12px 0 6px">生成結果</label>
@@ -358,6 +358,10 @@
       memos[0].value = initial.memo1;
       memos[1].value = initial.memo2;
       memos[2].value = initial.memo3;
+      shows[0].checked = initial.show1 === "true";
+      shows[1].checked = initial.show2 === "true";
+      shows[2].checked = initial.show3 === "true";
+      memos.forEach((memo, index) => { memo.type = shows[index].checked ? "text" : "password"; });
 
       let selectedCandidate = "";
 
@@ -425,7 +429,6 @@
           generationCount++;
           selectedCandidate = chars.join("");
           result.value = `${generationCount}：${selectedCandidate}`;
-          result.type = "text";
           adopt.disabled = false;
           status.textContent = n < groups.length
             ? "生成しました。文字数不足のため、すべてのカテゴリを含められません。"
@@ -466,14 +469,20 @@
         pattern: $("pattern").value,
         memo1: $("memo1").value,
         memo2: $("memo2").value,
-        memo3: $("memo3").value
+        memo3: $("memo3").value,
+        show1: $("show1").checked,
+        show2: $("show2").checked,
+        show3: $("show3").checked
       };
       let source = `(${pwgBookmarklet.toString()})(\n)`;
       source = source.replace("__LENGTH__", String(initial.length).replace(/[\\"`]/g, "\\$&"))
                      .replace("__PATTERN__", String(initial.pattern).replace(/[\\"`]/g, "\\$&"))
                      .replace("__MEMO1__", JSON.stringify(initial.memo1).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'))
                      .replace("__MEMO2__", JSON.stringify(initial.memo2).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'))
-                     .replace("__MEMO3__", JSON.stringify(initial.memo3).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'));
+                     .replace("__MEMO3__", JSON.stringify(initial.memo3).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'))
+                     .replace("__SHOW1__", String(initial.show1))
+                     .replace("__SHOW2__", String(initial.show2))
+                     .replace("__SHOW3__", String(initial.show3));
       $("bookmarkletCode").value = "javascript:" + encodeURIComponent(source);
       $("bookmarkletCode").focus();
       $("bookmarkletCode").select();
