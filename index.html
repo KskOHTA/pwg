@@ -11,14 +11,13 @@
     h1 { font-size: 1.5rem; }
     label { display: block; margin: 16px 0 6px; font-weight: 600; }
     input, select, button, textarea { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #8888; border-radius: 8px; font: inherit; }
-    button { cursor: pointer; font-weight: 600; }
+    button { cursor: pointer; font-weight: 700; color: #172033; background: #f8fafc; }
     button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 3px solid #4b9cff; outline-offset: 2px; }
+    button:disabled { cursor: default; opacity: .55; }
     .buttons { display: grid; gap: 10px; margin-top: 16px; }
-    .hash-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .bookmarklet-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hash-actions, .bookmarklet-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
     .settings-row > div { min-width: 0; }
-    .settings-row select, .settings-row input { min-width: 0; }
     .memo-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 44px; align-items: end; gap: 8px; }
     .memo-row > input { min-width: 0; }
     .check-label { display: grid; place-items: center; width: 44px; height: 44px; margin: 0; border: 1px solid #8888; border-radius: 8px; }
@@ -28,7 +27,7 @@
     .result-row button { width: auto; }
     #bookmarkletCode { min-height: 180px; resize: vertical; font-family: monospace; font-size: .78rem; }
     .note { padding: 12px; border-left: 4px solid #d99b18; background: #d99b1818; border-radius: 4px; }
-    .muted { opacity: .8; font-size: .92rem; }
+    .muted { opacity: .85; font-size: .92rem; }
     #status { min-height: 1.5em; }
     details.description { margin: 12px 0; }
     details.description summary { cursor: pointer; font-weight: 600; }
@@ -47,7 +46,7 @@
         このページはメモから同じパスワード列を再現できます。
         メモが推測されるとパスワードも再現されるため、
         <strong>重要なアカウントには、推測されやすいメモを使わないでください。</strong>
-        メモは通常保存・送信されません。「保存」にチェックしたメモは、このブラウザーのローカルストレージに平文で保存されます。共有端末では保存を避けてください。
+        メモは通常保存・送信されません。「保存」にチェックしたメモは、このブラウザーのローカルストレージに平文で保存されます。共有端末では保存チェックを外してください。
       </p>
     </details>
 
@@ -182,11 +181,8 @@
       try {
         const checked = $("check" + number).checked;
         localStorage.setItem(checkKey(number), String(checked));
-        if (checked) {
-          localStorage.setItem(storageKey(number), $("memo" + number).value);
-        } else {
-          localStorage.removeItem(storageKey(number));
-        }
+        if (checked) localStorage.setItem(storageKey(number), $("memo" + number).value);
+        else localStorage.removeItem(storageKey(number));
         return true;
       } catch {
         $("status").textContent = "メモを保存できませんでした。ブラウザーの保存領域を確認してください。";
@@ -196,20 +192,15 @@
 
     function saveVisibility(number) {
       updateMemoVisibility(number);
-      try {
-        localStorage.setItem(visibilityKey(number), String($("show" + number).checked));
-      } catch {
-        $("status").textContent = "表示設定を保存できませんでした。";
-      }
+      try { localStorage.setItem(visibilityKey(number), String($("show" + number).checked)); }
+      catch { $("status").textContent = "表示設定を保存できませんでした。"; }
     }
 
     function getMemoSnapshot() {
       return JSON.stringify([$("memo1").value, $("memo2").value, $("memo3").value]);
     }
 
-    function toHex(bytes) {
-      return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join("");
-    }
+    function toHex(bytes) { return Array.from(bytes, b => b.toString(16).padStart(2, "0")).join(""); }
 
     async function sha256(text) {
       const bytes = new TextEncoder().encode(text);
@@ -218,10 +209,7 @@
     }
 
     async function makeSeed() {
-      if (!crypto.subtle) {
-        $("status").textContent = "Web Crypto APIを利用できません。HTTPS接続で開いてください。";
-        return false;
-      }
+      if (!crypto.subtle) { $("status").textContent = "Web Crypto APIを利用できません。HTTPS接続で開いてください。"; return false; }
       if (![$("memo1").value, $("memo2").value, $("memo3").value].some(v => v.length > 0)) {
         $("status").textContent = "シード作成には、メモを1つ以上入力してください。";
         return false;
@@ -254,13 +242,9 @@
 
     async function generatePassword() {
       if (!seedHex || getMemoSnapshot() !== memoSnapshot) {
-        const created = await makeSeed();
-        if (!created) return;
+        if (!(await makeSeed())) return;
       }
-      if (!crypto.subtle) {
-        $("status").textContent = "Web Crypto APIを利用できません。HTTPS接続で開いてください。";
-        return;
-      }
+      if (!crypto.subtle) { $("status").textContent = "Web Crypto APIを利用できません。HTTPS接続で開いてください。"; return; }
       const length = Number($("length").value);
       if (!Number.isInteger(length) || length < 1 || length > 256) {
         $("status").textContent = "文字数は1〜256の整数で指定してください。";
@@ -271,15 +255,11 @@
       const counter = { value: 0 };
       try {
         const chars = [];
-        for (let i = 0; i < length; i++) {
-          const index = await randomBelow(alphabet.length, counter);
-          chars.push(alphabet[index]);
-        }
+        for (let i = 0; i < length; i++) chars.push(alphabet[await randomBelow(alphabet.length, counter)]);
         for (const group of groups) {
           if (chars.some(char => group.includes(char))) continue;
           const position = await randomBelow(length, counter);
-          const index = await randomBelow(group.length, counter);
-          chars[position] = group[index];
+          chars[position] = group[await randomBelow(group.length, counter)];
         }
         $("result").value = chars.join("");
         generationCount++;
@@ -310,10 +290,7 @@
     }
 
     async function copyResult() {
-      if (!$("result").value) {
-        $("status").textContent = "コピーする生成結果がありません。";
-        return;
-      }
+      if (!$("result").value) { $("status").textContent = "コピーする生成結果がありません。"; return; }
       try {
         await navigator.clipboard.writeText($("result").value);
         $("status").textContent = "生成結果をコピーしました。";
@@ -351,21 +328,30 @@
       backdrop.style.cssText = "position:fixed;inset:0;z-index:2147483646;background:rgba(15,23,42,.58);display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;font-family:system-ui,-apple-system,'Segoe UI',sans-serif";
       const panel = document.createElement("div");
       panel.style.cssText = "width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);overflow:auto;box-sizing:border-box;background:#fff;color:#172033;border-radius:14px;padding:20px;box-shadow:0 18px 48px rgba(0,0,0,.35)";
-      panel.innerHTML = `<h2 style="margin:0 0 12px;font-size:1.25rem">パスワード候補</h2>
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px"><div><label style="display:block;font-weight:700;margin:0 0 6px">文字パターン</label><select id="pwgBmPattern" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"><option value="1">1：英大＋英小＋数字</option><option value="2">2：英小＋数字</option><option value="3">3：英大＋数字</option><option value="4">4：英大＋英小</option><option value="5">5：英大＋英小＋数字＋記号</option><option value="6">6：英小＋数字＋記号</option></select></div><div><label style="display:block;font-weight:700;margin:0 0 6px">文字数</label><input id="pwgBmLength" type="number" min="1" max="256" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div></div>
-        <div style="display:grid;gap:8px;margin-top:12px"><label style="font-weight:700">メモ1</label><input id="pwgBmMemo1" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"><label style="font-weight:700">メモ2</label><input id="pwgBmMemo2" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"><label style="font-weight:700">メモ3</label><input id="pwgBmMemo3" type="password" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
-        <button id="pwgBmGenerate" type="button" style="width:100%;min-height:44px;margin-top:14px;border:1px solid #8888;border-radius:8px;font-weight:700">パスワード生成</button>
-        <label style="display:block;font-weight:700;margin:12px 0 6px">候補パスワード</label><div id="pwgBmCandidates" style="display:grid;gap:8px"></div>
+      panel.innerHTML = `<h2 style="margin:0 0 12px;font-size:1.25rem">パスワード生成</h2>
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+          <div><label style="display:block;font-weight:700;margin:0 0 6px">文字パターン</label><select id="pwgBmPattern" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"><option value="1">1：英大＋英小＋数字</option><option value="2">2：英小＋数字</option><option value="3">3：英大＋数字</option><option value="4">4：英大＋英小</option><option value="5">5：英大＋英小＋数字＋記号</option><option value="6">6：英小＋数字＋記号</option></select></div>
+          <div><label style="display:block;font-weight:700;margin:0 0 6px">文字数</label><input id="pwgBmLength" type="number" min="1" max="256" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+        </div>
+        <div style="display:grid;gap:8px;margin-top:12px">
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ1</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow1" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo1" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ2</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow2" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo2" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+          <div><div style="display:flex;justify-content:space-between;align-items:center"><label style="font-weight:700;margin:0">メモ3</label><label style="display:flex;gap:6px;align-items:center;margin:0;font-size:.9rem"><input id="pwgBmShow3" type="checkbox" style="width:18px;height:18px" checked> テキスト表示</label></div><input id="pwgBmMemo3" type="text" autocomplete="off" style="width:100%;min-height:44px;padding:8px;border:1px solid #8888;border-radius:8px"></div>
+        </div>
+        <button id="pwgBmGenerate" type="button" style="width:100%;min-height:44px;margin-top:14px;border:1px solid #172033;border-radius:8px;font-weight:700;color:#172033;background:#f8fafc">パスワード生成</button>
+        <label style="display:block;font-weight:700;margin:12px 0 6px">生成結果</label>
+        <input id="pwgBmResult" type="text" readonly style="width:100%;min-height:44px;padding:8px 10px;border:1px solid #8888;border-radius:8px;font-family:monospace;font-size:1rem;background:#fff;color:#172033">
         <p id="pwgBmStatus" style="min-height:1.5em;color:#475569;font-size:.92rem" aria-live="polite"></p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button id="pwgBmAdopt" type="button" style="min-height:44px;border:1px solid #8888;border-radius:8px;font-weight:700" disabled>採用</button><button id="pwgBmCancel" type="button" style="min-height:44px;border:1px solid #8888;border-radius:8px;font-weight:700">キャンセル</button></div>`;
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><button id="pwgBmAdopt" type="button" style="min-height:44px;border:1px solid #172033;border-radius:8px;font-weight:700;color:#172033;background:#f8fafc" disabled>採用</button><button id="pwgBmCancel" type="button" style="min-height:44px;border:1px solid #172033;border-radius:8px;font-weight:700;color:#172033;background:#f8fafc">キャンセル</button></div>`;
       backdrop.appendChild(panel);
       document.body.appendChild(backdrop);
 
       const pattern = panel.querySelector("#pwgBmPattern");
       const length = panel.querySelector("#pwgBmLength");
       const memos = [panel.querySelector("#pwgBmMemo1"), panel.querySelector("#pwgBmMemo2"), panel.querySelector("#pwgBmMemo3")];
+      const shows = [panel.querySelector("#pwgBmShow1"), panel.querySelector("#pwgBmShow2"), panel.querySelector("#pwgBmShow3")];
       const status = panel.querySelector("#pwgBmStatus");
-      const candidates = panel.querySelector("#pwgBmCandidates");
+      const result = panel.querySelector("#pwgBmResult");
       const adopt = panel.querySelector("#pwgBmAdopt");
       pattern.value = initial.pattern;
       length.value = initial.length;
@@ -386,8 +372,9 @@
         memoSnapshot = "";
         generationCount = 0;
         selectedCandidate = "";
-        candidates.textContent = "";
+        result.value = "";
         adopt.disabled = true;
+        status.textContent = "";
       }
       function snapshot() { return JSON.stringify([memos[0].value, memos[1].value, memos[2].value]); }
 
@@ -435,23 +422,14 @@
             const index = await randomBelow(group.length, counter);
             chars[position] = group[index];
           }
-          const password = chars.join("");
           generationCount++;
-          const row = document.createElement("button");
-          row.type = "button";
-          row.textContent = `${generationCount}：${password}`;
-          row.style.cssText = "width:100%;min-height:44px;text-align:left;padding:8px 10px;border:1px solid #8888;border-radius:8px;font-family:monospace;font-size:1rem;background:#fff";
-          row.addEventListener("click", () => {
-            selectedCandidate = password;
-            adopt.disabled = false;
-            Array.from(candidates.children).forEach((button, i) => { button.style.background = i === generationCount - 1 && button === row ? "#dbeafe" : "#fff"; });
-            status.textContent = `候補${generationCount}を選択しました。`; 
-          });
-          candidates.insertBefore(row, candidates.firstChild);
-          selectedCandidate = password;
+          selectedCandidate = chars.join("");
+          result.value = `${generationCount}：${selectedCandidate}`;
+          result.type = "text";
           adopt.disabled = false;
-          Array.from(candidates.children).forEach(button => { button.style.background = button === row ? "#dbeafe" : "#fff"; });
-          status.textContent = n < groups.length ? "生成しました。文字数不足のため、すべてのカテゴリを含められません。" : "候補を生成しました。候補を選択して採用できます。";
+          status.textContent = n < groups.length
+            ? "生成しました。文字数不足のため、すべてのカテゴリを含められません。"
+            : `${generationCount}回目のパスワードを生成しました。`;
         } catch {
           status.textContent = "生成に失敗しました。HTTPS接続で開いているか確認してください。";
         }
@@ -460,8 +438,11 @@
       pattern.addEventListener("change", resetSequence);
       length.addEventListener("input", resetSequence);
       memos.forEach(memo => memo.addEventListener("input", resetSequence));
+      shows.forEach((show, index) => show.addEventListener("change", () => { memos[index].type = show.checked ? "text" : "password"; }));
       panel.querySelector("#pwgBmGenerate").addEventListener("click", generatePassword);
-      memos.forEach(memo => memo.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventEvent; generatePassword(); } }));
+      memos.forEach(memo => memo.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); generatePassword(); }
+      }));
 
       adopt.addEventListener("click", () => {
         if (!selectedCandidate) return;
@@ -493,8 +474,7 @@
                      .replace("__MEMO1__", JSON.stringify(initial.memo1).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'))
                      .replace("__MEMO2__", JSON.stringify(initial.memo2).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'))
                      .replace("__MEMO3__", JSON.stringify(initial.memo3).slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e'));
-      const code = "javascript:" + encodeURIComponent(source);
-      $("bookmarkletCode").value = code;
+      $("bookmarkletCode").value = "javascript:" + encodeURIComponent(source);
       $("bookmarkletCode").focus();
       $("bookmarkletCode").select();
       $("status").textContent = "Bookmarklet用コードを作成しました。コードをコピーしてブックマークのURLに登録してください。";
@@ -502,10 +482,7 @@
 
     async function copyBookmarklet() {
       const code = $("bookmarkletCode").value;
-      if (!code) {
-        $("status").textContent = "まず「Bookmarklet作成」を押してください。";
-        return;
-      }
+      if (!code) { $("status").textContent = "まず「Bookmarklet作成」を押してください。"; return; }
       try {
         await navigator.clipboard.writeText(code);
         $("status").textContent = "Bookmarklet用コードをコピーしました。";
@@ -543,9 +520,9 @@
     $("makeSeed").addEventListener("click", makeSeed);
     $("generate").addEventListener("click", generatePassword);
     $("reset").addEventListener("click", resetSeed);
-    $("copy").addEventListener("click", copyResult);
+    $("copy").addEvent("click", copyResult);
     $("makeBookmarklet").addEventListener("click", makeBookmarklet);
-    $("copyBookmarklet").addEvent("click", copyBookmarklet);
+    $("copyBookmarklet").addEventListener("click", copyBookmarklet);
   </script>
 </body>
 </html>
