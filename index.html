@@ -302,12 +302,11 @@
 
     async function pwgBookmarklet() {
       const target = document.activeElement;
-      if (!target || !((target instanceof HTMLInputElement) || (target instanceof HTMLTextAreaElement))) {
-        alert("パスワード入力欄またはテキストエリアにフォーカスしてからBookmarkletを実行してください。");
-        return;
-      }
-      if (target instanceof HTMLInputElement && target.type !== "password") {
-        alert("パスワード入力欄またはテキストエリアにフォーカスしてからBookmarkletを実行してください。");
+      const textInputTypes = ["password", "text", "search", "email", "tel", "url"];
+      const isTextInput = target instanceof HTMLInputElement && textInputTypes.includes(target.type);
+      const isTextArea = target instanceof HTMLTextAreaElement;
+      if (!isTextInput && !isTextArea) {
+        alert("パスワード欄、テキスト入力欄、またはテキストエリアにフォーカスしてからBookmarkletを実行してください。");
         return;
       }
 
