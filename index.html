@@ -10,12 +10,12 @@
     body { max-width: 640px; margin: 0 auto; padding: 24px 16px 48px; line-height: 1.6; }
     h1 { font-size: 1.5rem; }
     label { display: block; margin: 16px 0 6px; font-weight: 600; }
-    input, select, button, textarea { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #8888; border-radius: 8px; font: inherit; }
+    input, select, button { box-sizing: border-box; width: 100%; min-height: 44px; padding: 9px 11px; border: 1px solid #8888; border-radius: 8px; font: inherit; }
     button { cursor: pointer; font-weight: 700; color: #172033; background: #f8fafc; }
-    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, textarea:focus-visible { outline: 3px solid #4b9cff; outline-offset: 2px; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid #4b9cff; outline-offset: 2px; }
     button:disabled { cursor: default; opacity: .55; }
     .buttons { display: grid; gap: 10px; margin-top: 16px; }
-    .hash-actions, .bookmarklet-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hash-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .settings-row { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
     .settings-row > div { min-width: 0; }
     .memo-row { display: grid; grid-template-columns: minmax(0, 1fr) 44px 44px; align-items: end; gap: 8px; }
@@ -25,7 +25,7 @@
     .result-row { display: flex; gap: 8px; }
     .result-row input { flex: 1; min-width: 0; font-family: monospace; }
     .result-row button { width: auto; }
-    #bookmarkletCode { min-height: 180px; resize: vertical; font-family: monospace; font-size: .78rem; }
+    #bookmarkletLink { display: inline-block; margin: 12px 0; padding: 9px 14px; border: 1px solid #4b9cff; border-radius: 8px; font-weight: 700; overflow-wrap: anywhere; }
     .note { padding: 12px; border-left: 4px solid #d99b18; background: #d99b1818; border-radius: 4px; }
     .muted { opacity: .85; font-size: .92rem; }
     #status { min-height: 1.5em; }
@@ -33,7 +33,7 @@
     details.description summary { cursor: pointer; font-weight: 600; }
     @media (max-width: 420px) {
       body { padding: 16px 12px 32px; }
-      .hash-actions, .bookmarklet-actions { grid-template-columns: 1fr; }
+      .hash-actions { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -119,12 +119,11 @@
     <label for="seedHash">シードハッシュ（SHA-256）</label>
     <input id="seedHash" type="text" readonly placeholder="メモを入力してハッシュを作成してください">
 
-    <div class="buttons bookmarklet-actions">
-      <button id="makeBookmarklet" type="button">Bookmarklet作成</button>
-      <button id="copyBookmarklet" type="button">コードをコピー</button>
-    </div>
-    <label for="bookmarkletCode">Bookmarklet用コード</label>
-    <textarea id="bookmarkletCode" readonly placeholder="「Bookmarklet作成」を押すと表示されます"></textarea>
+    <label for="bookmarkletName">ブックマークレット名</label>
+    <input id="bookmarkletName" type="text" value="パスワード生成" autocomplete="off">
+    <div class="buttons"><button id="makeBookmarklet" type="button">Bookmarklet作成</button></div>
+    <p class="muted">作成したリンクをブラウザーのブックマークバーへドラッグするか、右クリックしてブックマークに登録してください。</p>
+    <a id="bookmarkletLink" href="#">Bookmarklet未作成</a>
 
     <div class="buttons"><button id="reset" type="button">リセット</button></div>
   </main>
@@ -285,8 +284,10 @@
         } catch {}
       }
       clearMemoDerivedValues();
-      $("bookmarkletCode").value = "";
-      $("status").textContent = "シード、メモ、保存設定、生成結果をリセットしました。";
+      $("bookmarkletName").value = "パスワード生成";
+      $("bookmarkletLink").textContent = "Bookmarklet未作成";
+      $("bookmarkletLink").setAttribute("href", "#");
+      $("status").textContent = "シード、メモ、保存設定、生成結果、Bookmarkletをリセットしました。";
     }
 
     async function copyResult() {
@@ -483,23 +484,10 @@
                      .replace("__SHOW1__", String(initial.show1))
                      .replace("__SHOW2__", String(initial.show2))
                      .replace("__SHOW3__", String(initial.show3));
-      $("bookmarkletCode").value = "javascript:" + encodeURIComponent(source);
-      $("bookmarkletCode").focus();
-      $("bookmarkletCode").select();
-      $("status").textContent = "Bookmarklet用コードを作成しました。コードをコピーしてブックマークのURLに登録してください。";
-    }
-
-    async function copyBookmarklet() {
-      const code = $("bookmarkletCode").value;
-      if (!code) { $("status").textContent = "まず「Bookmarklet作成」を押してください。"; return; }
-      try {
-        await navigator.clipboard.writeText(code);
-        $("status").textContent = "Bookmarklet用コードをコピーしました。";
-      } catch {
-        $("bookmarkletCode").focus();
-        $("bookmarkletCode").select();
-        $("status").textContent = "自動コピーできませんでした。コードを選択してコピーしてください。";
-      }
+      const link = $("bookmarkletLink");
+      link.textContent = $("bookmarkletName").value.trim() || "パスワード生成";
+      link.href = "javascript:" + encodeURIComponent(source);
+      $("status").textContent = "Bookmarkletを作成しました。表示されたリンクをブラウザーのブックマークに登録してください。";
     }
 
     for (let number = 1; number <= 3; number++) {
@@ -531,7 +519,7 @@
     $("reset").addEventListener("click", resetSeed);
     $("copy").addEventListener("click", copyResult);
     $("makeBookmarklet").addEventListener("click", makeBookmarklet);
-    $("copyBookmarklet").addEventListener("click", copyBookmarklet);
   </script>
 </body>
 </html>
+
