@@ -354,6 +354,8 @@
       const status = panel.querySelector("#pwgBmStatus");
       const result = panel.querySelector("#pwgBmResult");
       const adopt = panel.querySelector("#pwgBmAdopt");
+      const generateButton = panel.querySelector("#pwgBmGenerate");
+      const cancelButton = panel.querySelector("#pwgBmCancel");
       pattern.value = initial.pattern;
       length.value = initial.length;
       memos[0].value = initial.memo1;
@@ -443,10 +445,7 @@
       length.addEventListener("input", resetSequence);
       memos.forEach(memo => memo.addEventListener("input", resetSequence));
       shows.forEach((show, index) => show.addEventListener("change", () => { memos[index].type = show.checked ? "text" : "password"; }));
-      panel.querySelector("#pwgBmGenerate").addEventListener("click", generatePassword);
-      memos.forEach(memo => memo.addEventListener("keydown", event => {
-        if (event.key === "Enter") { event.preventDefault(); generatePassword(); }
-      }));
+      generateButton.addEventListener("click", generatePassword);
 
       adopt.addEventListener("click", () => {
         if (!selectedCandidate) return;
@@ -458,7 +457,20 @@
         backdrop.remove();
         target.focus();
       });
-      panel.querySelector("#pwgBmCancel").addEventListener("click", () => { backdrop.remove(); target.focus(); });
+      cancelButton.addEventListener("click", () => { backdrop.remove(); target.focus(); });
+      memos.forEach((memo, index) => memo.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          cancelButton.click();
+        } else if (event.key === "Enter") {
+          event.preventDefault();
+          if (event.shiftKey || event.ctrlKey) adopt.click();
+          else generateButton.click();
+        } else if (event.key === "Tab" && !event.shiftKey && index < memos.length - 1) {
+          event.preventDefault();
+          memos[index + 1].focus();
+        }
+      }));
       backdrop.addEventListener("click", event => { if (event.target === backdrop) { backdrop.remove(); target.focus(); } });
       memos[0].focus();
       memos[0].select();
